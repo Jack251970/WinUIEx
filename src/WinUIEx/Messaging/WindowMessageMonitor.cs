@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Windows.Win32;
 
 namespace WinUIEx.Messaging
 {
@@ -76,6 +78,40 @@ namespace WinUIEx.Messaging
         [UnmanagedCallersOnly(CallConvs = new Type[] { typeof(System.Runtime.CompilerServices.CallConvStdcall) })]
         private static Windows.Win32.Foundation.LRESULT NewWindowProc(Windows.Win32.Foundation.HWND hWnd, uint uMsg, Windows.Win32.Foundation.WPARAM wParam, Windows.Win32.Foundation.LPARAM lParam, nuint uIdSubclass, nuint dwRefData)
         {
+            if (uMsg == PInvoke.WM_POWERBROADCAST && wParam == PInvoke.PBT_POWERSETTINGCHANGE)
+            {
+                var settings = Marshal.PtrToStructure<Windows.Win32.System.Power.POWERBROADCAST_SETTING>(lParam);
+                if (settings.PowerSetting == PInvoke.GUID_LIDSWITCH_STATE_CHANGE)
+                {
+                    switch (settings.Data.AsSpan(1)[0])
+                    {
+                        case 0:
+                            Debug.WriteLine("Lid closed");
+                            break;
+                        case 1:
+                            Debug.WriteLine("Lid opened");
+                            break;
+                        default:
+                            Debug.WriteLine("Lid unknown state");
+                            break;
+                    }
+                }
+                else if (settings.PowerSetting == PInvoke.GUID_CONSOLE_DISPLAY_STATE)
+                {
+                    switch (settings.Data.AsSpan(1)[0])
+                    {
+                        case 0:
+                            Debug.WriteLine("Monitor Power Off");
+                            break;
+                        case 1:
+                            Debug.WriteLine("Monitor Power On");
+                            break;
+                        case 2:
+                            Debug.WriteLine("Monitor Dimmed");
+                            break;
+                    }
+                }
+            }
             var handle = GCHandle.FromIntPtr((IntPtr)(nint)dwRefData);
             if (handle.IsAllocated && handle.Target is WindowMessageMonitor monitor)
             {
